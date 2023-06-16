@@ -17,6 +17,6 @@ runs:
           run: |
               if [[ -f pom.xml ]]; then
               docker run --pull always --rm \
-                  --volume "${PWD}:/media/workdir"
+                  --volume "${PWD}:/media/workdir" \
                   madebytimo/dependency-analysis-java
               fi
