@@ -18,5 +18,6 @@ runs:
               if [[ -f pom.xml ]]; then
               docker run --pull always --rm \
                   --volume "${PWD}:/media/workdir" \
-                  madebytimo/dependency-analysis-java
+                  madebytimo/dependency-analysis-java \
+                  >> $GITHUB_STEP_SUMMARY
               fi
