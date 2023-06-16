@@ -1,0 +1,75 @@
+name: "build and release"
+
+on:
+    pull_request:
+    push:
+        branches:
+            - "main"
+    workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
+            - name: Create cache folder
+              run: |
+                  sudo mkdir --parents /media/saved-cache
+                  sudo chown -R "$(whoami)" /media/saved-cache
+            - name: Get cache
+              uses: actions/cache/restore@v3
+              with:
+                  path: /media/saved-cache
+                  key: github-action-dependency-analysis-build-cache-${{ github.run_id }}
+                  restore-keys: github-action-dependency-analysis-build-cache
+            - name: Import cache
+              run: |
+                  cat | \
+                      docker run --pull always --rm --interactive \
+                          --volume "/media/saved-cache:/media/saved-cache" \
+                          --volume "github-action-dependency-analysis-build-cache:/media/build-cache" \
+                          madebytimo/scripts \
+                          bash \
+                      << EOF
+                  cd /media
+                  if (ls /media/saved-cache/*.tar.zst); then
+                      compress.sh --decompress /media/saved-cache/*.tar.zst
+                      rm /media/saved-cache/*.tar.zst
+                  fi
+                  EOF
+            - name: Set secrets
+              run: |
+                  mkdir data-local
+                  if [[ -n '${{ secrets.UNITY_LICENSE_FILE }}' ]]; then
+                      echo '${{ secrets.UNITY_LICENSE_FILE }}' > data-local/unity-license.ulf
+                  fi
+            - name: Build
+              run: builder/build.sh
+            - name: Set version variable
+              id: step_one
+              run: echo "version=$(cat Version.txt)" >> "$GITHUB_ENV"
+            - name: Upload
+              uses: actions/upload-artifact@v3
+              with:
+                  name: ${{ env.version }}
+                  path: builds/*
+            - name: Release
+              if: ${{ github.ref == 'refs/heads/main' }}
+              uses: softprops/action-gh-release@v1
+              with:
+                  files: builds/*
+                  tag_name: ${{ env.version }}
+            - name: Export cache
+              run: |
+                  docker run --pull always --rm \
+                      --volume "/media/saved-cache:/media/saved-cache" \
+                      --volume "github-action-dependency-analysis-build-cache:/media/build-cache" \
+                      madebytimo/scripts \
+                      compress.sh --fast --output /media/saved-cache/build-cache /media/build-cache
+                  sudo chown -R "$(whoami)" /media/saved-cache
+            - name: Set cache
+              uses: actions/cache/save@v3
+              with:
+                  path: /media/saved-cache
+                  key: github-action-dependency-analysis-build-cache-${{ github.run_id }}

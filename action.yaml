@@ -1,0 +1,22 @@
+name: Dependency analysis
+description: Analyze dependencies
+
+inputs:
+    consent_telemetry:
+        description: CONSENT_TELEMETRY
+    crda_key:
+        description: CRDA_KEY
+    crda_snyk_token:
+        description: CRDA_SNYK_TOKEN
+
+runs:
+    using: "composite"
+    steps:
+        - name: Java
+          shell: bash
+          run: |
+              if [[ -f pom.xml ]]; then
+              docker run --pull always --rm \
+                  --volume "${PWD}:/media/workdir"
+                  madebytimo/dependency-analysis-java
+              fi
